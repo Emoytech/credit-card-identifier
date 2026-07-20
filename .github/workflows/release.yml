@@ -1,0 +1,55 @@
+name: Build Release Binaries
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            output: credit-linux
+          - os: macos-latest
+            output: credit-macos
+          - os: windows-latest
+            output: credit-windows.exe
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compile (Linux/macOS)
+        if: runner.os != 'Windows'
+        run: gcc -o ${{ matrix.output }} credit.c
+
+      - name: Compile (Windows)
+        if: runner.os == 'Windows'
+        run: gcc -o ${{ matrix.output }} credit.c
+        shell: bash
+
+      - name: Upload binary as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.output }}
+          path: ${{ matrix.output }}
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            credit-linux/credit-linux
+            credit-macos/credit-macos
+            credit-windows.exe/credit-windows.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
